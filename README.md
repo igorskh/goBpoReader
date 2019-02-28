@@ -1,6 +1,8 @@
 # Go BPO Reader
 A class for Boost parameters option files parser for Golang
 
+Any value of the configuration file is stored as a string.
+
 ## Example
 ```
 cfgManager := bporeader.BpoReader{}
@@ -9,6 +11,12 @@ if err != nil {
     fmt.Println(err.Error())
 }
 fmt.Println(cfgManager.GetString("section.value"))
+```
+
+Writing to a file
+```
+cfgManager.SetString("section.value", "new_value")
+cfgManager.WriteToFileClean("test.conf") // writes without keeping initial comments
 ```
 
 ## TODO
