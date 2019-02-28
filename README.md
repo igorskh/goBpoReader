@@ -12,4 +12,6 @@ fmt.Println(cfgManager.GetString("section.value"))
 ```
 
 ## TODO
-* Tests
+- [ ] Set values
+- [ ] Write to file
+- [ ] Tests
