@@ -10,14 +10,68 @@ import (
 
 // BpoReader is a Config manager class
 type BpoReader struct {
-	Path    string
-	Content []byte
-	Values  map[string]string
+	Path           string
+	Content        []byte
+	InitialContent []byte
+	Values         map[string]string
+	Sections       []string
+}
+
+func getSectionName(fullName string) string {
+	dotPos := strings.Index(fullName, ".")
+	if dotPos > -1 {
+		return fullName[0:dotPos]
+	}
+	return fullName
+}
+
+func getKeyName(fullName string) string {
+	dotPos := strings.Index(fullName, ".")
+	if dotPos > -1 {
+		return fullName[dotPos+1 : len(fullName)]
+	}
+	return fullName
+}
+
+func (c *BpoReader) isSectionExists(sectionName string) int {
+	for i, s := range c.Sections {
+		if sectionName == s {
+			return i
+		}
+	}
+
+	return -1
 }
 
 // WriteToFile writes Content to a file
 func (c *BpoReader) WriteToFile(filePath string) error {
 	err := ioutil.WriteFile(filePath, c.Content, 0755)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// GenerateContentClean generates Content from the KeyValue map without initial comments
+func (c *BpoReader) GenerateContentClean() string {
+	mapToWrite := c.Values
+	newContent := ""
+
+	for _, sectionName := range c.Sections {
+		newContent += "[" + sectionName + "]\n"
+		for k, v := range mapToWrite {
+			if getSectionName(k) == sectionName {
+				newContent += getKeyName(k) + " = " + v + "\n"
+				delete(mapToWrite, k)
+			}
+		}
+	}
+	return newContent
+}
+
+// WriteToFileClean writes Content to a file without initial comments
+func (c *BpoReader) WriteToFileClean(filePath string) error {
+	err := ioutil.WriteFile(filePath, []byte(c.GenerateContentClean()), 0755)
 	if err != nil {
 		return err
 	}
@@ -37,6 +91,8 @@ func (c *BpoReader) parse() error {
 		sName := regexp.MustCompile(`\[(.+)\]`).FindSubmatch(c.Content[res[i][0]:res[i][1]])
 		currentPrefix := string(sName[1])
 		currentSlice := c.Content[res[i][0]:res[i+1][1]]
+
+		c.Sections = append(c.Sections, currentPrefix)
 
 		reKeyVals := regexp.MustCompile(`(?m)^(.+)\s*=\s*(.+)$`)
 		keyValsRes := reKeyVals.FindAllIndex(currentSlice, -1)
@@ -63,16 +119,26 @@ func (c *BpoReader) ReadFromFile(path string) error {
 
 	c.Path = path
 	c.Content = dat
+	c.InitialContent = dat
 	c.parse()
 	return nil
 }
 
-// GetString gets a string value of a key
-func (c *BpoReader) GetString(key string) string {
-	if val, ok := c.Values[key]; ok {
-		return val
+// SetString sets a string value
+func (c *BpoReader) SetString(key string, value string) {
+	sectionName := getSectionName(key)
+	if c.isSectionExists(sectionName) == -1 {
+		c.Sections = append(c.Sections, sectionName)
 	}
-	return ""
+	c.Values[key] = value
+}
+
+// GetString gets a string value of a key
+func (c *BpoReader) GetString(key string) (*string, error) {
+	if val, ok := c.Values[key]; ok {
+		return &val, nil
+	}
+	return nil, errors.New("Key not found")
 }
 
 // GetInt gets an integer value of a key
