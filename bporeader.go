@@ -62,7 +62,6 @@ func (c *BpoReader) GenerateContentClean() string {
 		for k, v := range mapToWrite {
 			if getSectionName(k) == sectionName {
 				newContent += getKeyName(k) + " = " + v + "\n"
-				delete(mapToWrite, k)
 			}
 		}
 	}
